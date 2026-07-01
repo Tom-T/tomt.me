@@ -1,0 +1,13 @@
+# Cloudflare Pages security headers.
+# Docs: https://developers.cloudflare.com/pages/configuration/headers/
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  # CSP: self-contained static site. 'unsafe-inline' on style-src covers the SVG
+  # favicon/inline style attributes. frame-src is scoped to the video embeds you
+  # add later (YouTube / Cloudflare Stream) — trim it if you use only one.
+  Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://iframe.cloudflarestream.com https://*.cloudflarestream.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
