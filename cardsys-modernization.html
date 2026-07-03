@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Strangling a COBOL card platform off the mainframe — Tom Tijerina</title>
+  <meta name="description" content="A case study: modernizing an aging COBOL credit-card platform to Go on Kubernetes with the strangler-fig pattern. Business case first, one parity-tested slice proven, and an honest line drawn between what runs today and what is still scaffolded." />
+  <meta name="author" content="Tom Tijerina" />
+  <link rel="canonical" href="https://tomt.me/cardsys-modernization.html" />
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Tom Tijerina" />
+  <meta property="og:title" content="Strangling a COBOL card platform off the mainframe" />
+  <meta property="og:description" content="Business case first, one parity-tested slice proven, and an honest line between what runs today and what is still scaffolded. COBOL to Go on Kubernetes, the strangler-fig way." />
+  <meta property="og:url" content="https://tomt.me/cardsys-modernization.html" />
+  <meta property="og:image" content="https://tomt.me/og-image.png" />
+  <meta property="og:image:alt" content="Tom Tijerina — mainframe modernization case study" />
+
+  <!-- Twitter / X card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Strangling a COBOL card platform off the mainframe" />
+  <meta name="twitter:description" content="Business case first, one parity-tested slice proven, and an honest line between what runs today and what is still scaffolded." />
+  <meta name="twitter:image" content="https://tomt.me/og-image.png" />
+
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)" />
+
+  <link rel="stylesheet" href="/styles.css" />
+
+  <!-- Case-study-only styles. Scoped here so the shared stylesheet needs no edits. -->
+  <style>
+    .case-hero { padding-block: clamp(2.5rem, 7vw, 4.5rem); }
+    .backlink {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: .85rem;
+      color: var(--text-muted);
+      margin-bottom: 1.25rem;
+    }
+    .backlink:hover { color: var(--text); }
+    .case-lede {
+      font-size: clamp(1.1rem, 1rem + 0.6vw, 1.35rem);
+      color: var(--text-muted);
+      max-width: 60ch;
+      margin: 0 0 1.5rem;
+    }
+    .disclaimer {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius-sm);
+      padding: 1rem 1.15rem;
+      margin: 0 0 1rem;
+      font-size: .95rem;
+      color: var(--text-muted);
+      box-shadow: var(--shadow);
+    }
+    .disclaimer strong { color: var(--text); }
+    .prose h3 {
+      font-size: 1.2rem;
+      margin: 2rem 0 .6rem;
+      color: var(--text);
+    }
+    .prose ul { color: var(--text-muted); padding-left: 1.2rem; margin: 0 0 1.1rem; }
+    .prose li { margin-bottom: .5rem; }
+    .status-group { margin: 0 0 1.4rem; }
+    .badge {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: .7rem;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      padding: .18rem .5rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      vertical-align: middle;
+    }
+    .badge--warn {
+      color: var(--text);
+      background: color-mix(in srgb, var(--focus) 14%, transparent);
+      border-color: color-mix(in srgb, var(--focus) 40%, var(--border));
+    }
+    .badge--muted { color: var(--text-muted); background: transparent; }
+    .status-group h3 { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <nav class="nav" aria-label="Primary">
+      <a class="nav__brand" href="/" aria-label="Tom Tijerina — home">TT</a>
+      <ul class="nav__links">
+        <li><a href="/#work">Work</a></li>
+        <li><a href="/#video">Video</a></li>
+        <li><a href="/#contact">Contact</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="main">
+    <!-- ===================== INTRO ===================== -->
+    <section class="hero case-hero" aria-labelledby="case-title">
+      <div class="container container--narrow">
+        <a class="backlink" href="/#work">&larr; Back to work</a>
+        <p class="hero__eyebrow">Case study &middot; COBOL &rarr; Go on Kubernetes</p>
+        <h1 id="case-title" class="hero__title" style="font-size: clamp(2rem, 1.4rem + 3vw, 3.25rem);">
+          Strangling a card platform off the mainframe
+        </h1>
+        <p class="case-lede">
+          Part of the problem with legacy modernization is that everyone starts with the tech.
+          New language, new cloud, big rewrite... and two years later the old system is still
+          running, because nobody could prove the new one did the same thing. So I started
+          somewhere else - with the business case, and with a way to prove parity before cutting
+          anything over.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn--primary" href="https://github.com/Tom-T/cardsys-modernization" rel="noopener">
+            View the project on GitHub
+          </a>
+          <a class="btn" href="https://cal.com/tomtijerina/">Schedule a call</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== DISCLAIMER ===================== -->
+    <section class="section" aria-label="What this project is">
+      <div class="container container--narrow">
+        <p class="disclaimer">
+          <strong>What this is, honestly.</strong> This is a representative simulation, not a real
+          employer's system. The legacy code is adapted from AWS's open-source COBOL <em>CardDemo</em>,
+          run on GnuCOBOL/Linux because I can't (and shouldn't) get live financial-institution data or a
+          real mainframe. The company, the cast, and the dollar figures are illustrative. The
+          engineering marked "built" below is real and runs. Everything else is labeled as scaffolded or
+          simulated, on purpose.
+        </p>
+      </div>
+    </section>
+
+    <!-- ===================== BUSINESS CASE ===================== -->
+    <section class="section section--alt" aria-labelledby="s-business">
+      <div class="container container--narrow">
+        <h2 id="s-business" class="section__title">The business case comes first</h2>
+        <div class="prose" style="max-width: 62ch;">
+          <p>
+            The tech choice is downstream of the business problem, so that's where I start. The
+            scenario: a reliable but aging COBOL card platform, maintained by a shrinking, retiring
+            team. Four people hold the core knowledge. Three of them retire inside about 30 months. One
+            of them, after 31 years, owns the interest, settlement, and posting logic that "nobody else
+            fully understands."
+          </p>
+          <p>
+            That's the whole reason the project has urgency - not a language preference, a retirement
+            cliff. For a PCI-scoped payment system, a batch defect is a compliance and financial-loss
+            event, not an inconvenience. So the first slice deliberately targets the retiring engineer's
+            program: get the highest-risk, least-understood logic out from under a single person, first,
+            while he's still here to check the work.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== APPROACH ===================== -->
+    <section class="section" aria-labelledby="s-approach">
+      <div class="container container--narrow">
+        <h2 id="s-approach" class="section__title">The approach: strangler fig</h2>
+        <div class="prose" style="max-width: 62ch;">
+          <p>
+            No big-bang rewrite. Stand a facade in front of the legacy batch, replace one capability at
+            a time with a Go service, and cut over only after a golden-master parity test proves the new
+            output matches the old, field for field. Every slice is reversible. If a slice can't prove
+            parity, it doesn't ship - the test is the gate, not my confidence.
+          </p>
+          <p>
+            There are two seams, and I treat them differently on purpose. The batch side is a true
+            strangle - containerize the COBOL, then replace it program by program behind the router. The
+            online side (the old terminal screens) is an honest rebuild in Go + HTMX, not a line-by-line
+            port, because the Linux COBOL runtime has no equivalent for the mainframe's screen layer.
+            Saying that out loud, instead of pretending it's a clean port, is part of the point.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== THE SLICE ===================== -->
+    <section class="section section--alt" aria-labelledby="s-slice">
+      <div class="container container--narrow">
+        <h2 id="s-slice" class="section__title">One slice, proven at parity</h2>
+        <div class="prose" style="max-width: 62ch;">
+          <p>
+            Rather than a wide, shallow demo, the target I set was one thin vertical slice, taken all
+            the way through: the interest batch. My hands-on part is the enablement - I stood up the
+            platform the slice runs on, and I defined the parity contract the work has to satisfy. On
+            that foundation, the AI dev team built the Go engine. It does money math in fixed-point
+            decimal, never floating point, and it mirrors the original down to the small quirks - the
+            preserved last-account edge case, and truncation instead of rounding, because the COBOL
+            doesn't round and fidelity to the legacy behavior beats "cleaner" math when a parity test
+            is the contract.
+          </p>
+          <p>
+            A golden-master harness diffs every field of the Go output against the frozen COBOL output.
+            It's green, and it runs in CI on every change that touches the batch or the golden master, so
+            the parity gate can't silently rot. That's the thesis in miniature: I don't get to claim the
+            rewrite is correct - the parity test does, on every commit.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== HONEST STATUS ===================== -->
+    <section class="section" aria-labelledby="s-status">
+      <div class="container container--narrow">
+        <h2 id="s-status" class="section__title">Built, deficient, or next - drawn on purpose</h2>
+        <div class="prose" style="max-width: 62ch;">
+          <p>
+            This is the part most portfolios skip. A portfolio piece is more credible when it draws the
+            line clearly than when it implies everything is production-hot. So here's exactly where that
+            line is today.
+          </p>
+
+          <div class="status-group">
+            <h3>Built and tested <span class="badge">runs today</span></h3>
+            <ul>
+              <li>A local platform that stands up with one command - Terraform provisions a small
+                libvirt/k3s Kubernetes lab, and Kustomize applies Postgres, the object store, and the
+                interest batch as a scheduled job.</li>
+              <li>The COBOL baseline compiles and runs the interest batch on GnuCOBOL/Linux -
+                reproducibly, from a script, adapting mainframe code to Linux program by program.</li>
+              <li>The Go interest engine passes the golden-master parity harness on every edge dataset.</li>
+              <li>That parity harness runs in CI as the cutover gate.</li>
+            </ul>
+          </div>
+
+          <div class="status-group">
+            <h3>Wired but deficient <span class="badge badge--warn">not yet validated</span></h3>
+            <ul>
+              <li>The batch is wired to Postgres behind a storage seam, and the scheduled job injects the
+                database credentials from the cluster's managed-Postgres secret. It builds, vets, and
+                unit-tests green - but I call it deficient, because it has never run against a live
+                cluster, and it reads empty tables until Postgres is seeded. Seeding the data and a
+                live-cluster end-to-end run are the next step. Until then, I don't count it as working.</li>
+            </ul>
+          </div>
+
+          <div class="status-group">
+            <h3>Scaffolded or decorative <span class="badge badge--muted">roadmap</span></h3>
+            <ul>
+              <li>The object store is a placeholder - ephemeral, demo credentials, and nothing writes to
+                it yet. It marks the target for future off-site backup, no more.</li>
+              <li>Metrics: the monitoring stack scrapes cluster and node metrics, but the app doesn't emit
+                its own yet - infrastructure observability, not application observability.</li>
+              <li>The cloud landing zone (Azure/AKS is the named target) is documented interface stubs,
+                not real Terraform, and there's no continuous-deploy pipeline to the cloud. Version one is
+                local-only, by design and by budget.</li>
+              <li>No real mainframe, an AI-directed "dev team," and synthetic data stand in for the real
+                thing - and are labeled that way everywhere.</li>
+            </ul>
+          </div>
+
+          <p>
+            I could hide those seams. The honest version is more useful to anyone deciding whether to
+            trust the rest of it - and it's the version that holds up in an interview.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== HOW I WORK ===================== -->
+    <section class="section section--alt" aria-labelledby="s-how">
+      <div class="container container--narrow">
+        <h2 id="s-how" class="section__title">How I actually work</h2>
+        <div class="prose" style="max-width: 62ch;">
+          <p>
+            Here's the part the code doesn't show. I'm not the one typing the implementation. AI agents
+            are the development team; I direct them the way I'd direct a room of engineers - I hold the
+            vision, make the business case, own the architecture calls, review the work, and keep it
+            honest against specs and parity gates. The hands on the keyboard changed. The job of leading
+            the build didn't.
+          </p>
+          <p>
+            Where I am hands-on is the part a DevOps job is actually about: the infrastructure and the
+            enablement. I own the platform the team builds on - the Terraform, the cluster, the CI, the
+            seams and the guardrails - and I make sure that enablement genuinely works, so the team can
+            function instead of fighting the environment. That's not a footnote under the "real" work.
+            On this kind of migration it is the work. The developers move fast because the ground under
+            them is solid, and keeping it solid is my job.
+          </p>
+          <p>
+            The judgment calls were mine, and each one traces to a commit: host-passthrough CPU for the
+            lab guests, pinning the libvirt provider below a breaking release so a mid-bring-up rewrite
+            didn't derail the work, truncation over rounding to stay faithful to the COBOL, deferring a
+            heavier workflow engine because a closed-world batch doesn't need it yet and adding it now
+            would be complexity for the resume, not the system. Knowing which decisions are mine and
+            which belong to someone else is most of the job - picking the production datastore in a real
+            migration, for instance, is a business call for the people who own that risk, not mine to
+            make. My job is to surface it with clean options, not to quietly decide it.
+          </p>
+          <p>
+            The reason I can direct work across COBOL, Go, Terraform, and Kubernetes without being the
+            deepest expert in each is the same reason a good lead can: know enough of every art to direct
+            it well. Musashi put it better - "know the ways of all professions" - and the precept right
+            before it is "do not think dishonestly." Felt like the right project to build in the open.
+          </p>
+          <p>
+            So I made the usually-invisible part visible on purpose. Why interest first, why truncate,
+            what's deficient and why - it's all written down in the repo as decision records and a status
+            page. Not a demo that hides the seams. A build you can audit.
+          </p>
+        </div>
+        <div class="cta-row" style="margin-top: 1.5rem;">
+          <a class="btn btn--primary" href="https://github.com/Tom-T/cardsys-modernization" rel="noopener">
+            Read the code and the decision records
+          </a>
+          <a class="btn" href="/#work">Back to work</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== CONTACT ===================== -->
+    <section class="section" id="contact" aria-labelledby="s-contact">
+      <div class="container container--narrow">
+        <h2 id="s-contact" class="section__title">Get in touch</h2>
+        <p class="prose prose--center">
+          Recruiting for a senior Linux, DevOps, or platform role, or curious how the AI-directed build
+          actually runs? I'd like to hear about it.
+        </p>
+        <div class="cta-row cta-row--center">
+          <a class="btn btn--primary" href="https://cal.com/tomtijerina/">Schedule a call</a>
+          <a class="btn" href="mailto:tom@tomt.me">tom@tomt.me</a>
+          <a class="btn" href="https://linkedin.com/in/tomtijerina" rel="noopener">LinkedIn</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p class="site-footer__name">Tom Tijerina</p>
+      <ul class="site-footer__links">
+        <li><a href="mailto:tom@tomt.me">tom@tomt.me</a></li>
+        <li><a href="https://linkedin.com/in/tomtijerina" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://cal.com/tomtijerina/">Schedule a call</a></li>
+      </ul>
+      <p class="site-footer__note">&copy; <span id="year">2026</span> Tom Tijerina</p>
+    </div>
+  </footer>
+
+  <script src="/script.js" defer></script>
+</body>
+</html>
